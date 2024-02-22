@@ -1,0 +1,47 @@
+
+loader.entrypoint = "file:{{ gramine.libos }}"
+libos.entrypoint = "{{ entrypoint }}"
+loader.log_level = "{{ log_level }}"
+
+loader.env.LD_LIBRARY_PATH = "/lib:{{ arch_libdir }}:/usr{{ arch_libdir }}"
+
+loader.argv = ["tor", "-f", "/etc/tor/torrc"]
+
+sys.experimental__enable_flock = true
+
+fs.mounts = [
+  { path = "/lib", uri = "file:{{ gramine.runtimedir() }}" },
+  { path = "{{ entrypoint }}", uri = "file:{{ entrypoint }}" },
+  { path = "{{ arch_libdir }}", uri = "file:{{ arch_libdir }}" },
+  { path = "/usr{{ arch_libdir }}", uri = "file:/usr{{ arch_libdir }}" },
+  { path = "/usr/local/var", uri = "file:/usr/local/var" },
+  { path = "/etc/tor/torrc", uri = "file:/etc/tor/torrc" },
+
+  { path = "/private-tor-network/data/", uri = "file:/private-tor-network/data/" },
+  { path = "/tor/", uri = "file:/tor/" },
+]
+
+sgx.debug = true
+sgx.edmm_enable = {{ 'true' if env.get('EDMM', '0') == '1' else 'false' }}
+
+# Enabling remote attestation
+sgx.remote_attestation = "{{ ra_type }}"
+sgx.ra_client_spid = "{{ ra_client_spid }}"
+sgx.ra_client_linkable = {{ 'true' if ra_client_linkable == '1' else 'false' }}
+
+sgx.trusted_files = [
+  "file:{{ gramine.libos }}",
+  "file:{{ entrypoint }}",
+  "file:{{ gramine.runtimedir() }}/",
+  "file:{{ arch_libdir }}/",
+  "file:/usr{{ arch_libdir }}/",
+]
+
+sgx.allowed_files = [
+  "file:/usr/local/var/tor/",
+  "file:/etc/tor/torrc",
+
+  "file:/tor/",
+  "file:/private-tor-network/data/",
+]
+

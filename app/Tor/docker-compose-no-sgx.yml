@@ -1,0 +1,111 @@
+version: '3.9'
+
+services:
+
+  da1:
+      image: antitree/private-tor:0.3.4
+      #expose:
+      #  - "7000"
+      #  - "9030"
+      environment:
+        ROLE: DA
+      volumes:
+        ## Needed to keep track of other nodes
+        - ./tor:/tor
+
+  da2:
+      image: antitree/private-tor:0.3.4
+      #expose:
+      #  - "7000"
+      #  - "9030"
+      environment:
+        ROLE: DA
+      volumes:
+        ## Needed to keep track of other nodes
+        - ./tor:/tor
+
+  da3:
+      image: antitree/private-tor:0.3.4
+      #expose:
+      #  - "7000"
+      #  - "9030"
+      environment:
+        ROLE: DA
+      volumes:
+        ## Needed to keep track of other nodes
+        - ./tor:/tor
+
+  relay:
+      build:
+        dockerfile: Dockerfile
+      #expose:
+      #  - "7000"
+      #  - "9030"
+      deploy:
+        replicas: 5
+      environment:
+        ROLE: RELAY
+      volumes:
+        - ./tor:/tor
+      depends_on:
+        # Make sure the DA's are already up
+        - da1
+        - da2
+        - da3
+      command: tor -f /etc/tor/torrc
+
+  exit:
+      build:
+        dockerfile: Dockerfile
+      #expose:
+      #  - "7000"
+      #  - "9030"
+      environment:
+        ROLE: EXIT
+      deploy:
+        replicas: 3
+      volumes:
+        - ./tor:/tor
+        - ./data/input:/private-tor-network/data/input
+      depends_on:
+        # Make sure the DA's are already up
+        - da1
+        - da2
+        - da3
+      command: tor -f /etc/tor/torrc
+
+  client:
+      build:
+        dockerfile: Dockerfile
+      ports:
+        # Setups a listener on host machine
+        - "9050:9050"
+        - "9051:9051"
+      volumes:
+        - ./tor:/tor
+        - ./src/sf_mod:/private-tor-network/src/sf_mod
+        - ./src/run_demo.sh:/private-tor-network/src/run_demo.sh
+        - ./data/enclave:/private-tor-network/data/enclave
+        - ./data/input:/private-tor-network/data/input
+        - ./data/output:/private-tor-network/data/output
+        - ../../src:/private-tor-network/src/framework
+      environment:
+        ROLE: CLIENT
+        SGX: -1
+        WEB_REPLICAS: ${WEB_REPLICAS}
+        HOPS: ${HOPS}
+        CIRCUIT_BATCH_SIZE: ${CIRCUIT_BATCH_SIZE}
+      depends_on:
+        - da1
+        - da2
+        - da3
+      working_dir: /private-tor-network/src/
+      command: tor -f /etc/tor/torrc
+#      command: sleep infinity
+
+  web:
+      image: nginx
+      #expose:
+      #  - "80"
+      deploy:
+        replicas: ${WEB_REPLICAS}

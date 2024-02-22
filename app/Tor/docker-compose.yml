@@ -1,0 +1,138 @@
+version: '3.9'
+
+services:
+
+  da1:
+      image: antitree/private-tor:0.3.4
+      #expose:
+      #  - "7000"
+      #  - "9030"
+      environment:
+        ROLE: DA
+      volumes:
+        ## Needed to keep track of other nodes
+        - ./tor:/tor
+
+  da2:
+      image: antitree/private-tor:0.3.4
+      #expose:
+      #  - "7000"
+      #  - "9030"
+      environment:
+        ROLE: DA
+      volumes:
+        ## Needed to keep track of other nodes
+        - ./tor:/tor
+
+  da3:
+      image: antitree/private-tor:0.3.4
+      #expose:
+      #  - "7000"
+      #  - "9030"
+      environment:
+        ROLE: DA
+      volumes:
+        ## Needed to keep track of other nodes
+        - ./tor:/tor
+
+  relay:
+      build:
+        dockerfile: Dockerfile
+      #expose:
+      #  - "7000"
+      #  - "9030"
+      deploy:
+        replicas: 5
+      environment:
+        ROLE: RELAY
+      volumes:
+        - ./tor:/tor
+      depends_on:
+        # Make sure the DA's are already up
+        - da1
+        - da2
+        - da3
+      command: tor -f /etc/tor/torrc
+
+  exit:
+      build:
+        dockerfile: Dockerfile
+      #expose:
+      #  - "7000"
+      #  - "9030"
+      environment:
+        ROLE: EXIT
+      deploy:
+        replicas: 3
+      volumes:
+        - ./tor:/tor
+        - ./data/input:/private-tor-network/data/input
+      depends_on:
+        # Make sure the DA's are already up
+        - da1
+        - da2
+        - da3
+      command: tor -f /etc/tor/torrc
+
+  client:
+      build:
+        dockerfile: Dockerfile
+      ports:
+        # Setups a listener on host machine
+        - "9050:9050"
+        - "9051:9051"
+      volumes:
+        - aesmd-socket:/var/run/aesmd
+        - ./tor:/tor
+        - ./src/sf_mod:/private-tor-network/src/sf_mod
+        - ./src/informer:/private-tor-network/src/informer
+        - ./src/run_demo.sh:/private-tor-network/src/run_demo.sh
+        - ./src/init_client.sh:/private-tor-network/src/init_client.sh
+        - ./data/enclave:/private-tor-network/data/enclave
+        - ./data/input:/private-tor-network/data/input
+        - ./data/output:/private-tor-network/data/output
+        - ../../src:/private-tor-network/src/framework
+        - ./src/gramine_files/python/Makefile:/private-tor-network/src/Makefile
+        - ./src/gramine_files/python/python.manifest.template:/private-tor-network/src/python.manifest.template
+        - ./src/gramine_files/tor/Makefile:/private-tor-network/Makefile
+        - ./src/gramine_files/tor/tor.manifest.template:/private-tor-network/tor.manifest.template
+      environment:
+        ROLE: CLIENT
+      depends_on:
+        - aesmd
+        - da1
+        - da2
+        - da3
+      env_file: .env
+      working_dir: /private-tor-network/src/
+      extends:
+        file: ../../sgx-driver.yml
+        service: ${SGX_DRIVER}-enclave-devices
+      command: bash init_client.sh
+#      command: sleep infinity
+
+  web:
+      image: nginx
+      #expose:
+      #  - "80"
+      deploy:
+        replicas: ${WEB_REPLICAS}
+
+  aesmd:
+      image: ghcr.io/initc3/sgx-aesm:2.19-buster-81eb0d3
+      volumes:
+        - aesmd-socket:/var/run/aesmd
+      # NOTE set SGX_DRIVER in your .env file to "oot" or "inkernel"
+      # see README for more details
+      extends:
+        file: ../../sgx-driver.yml
+        service: ${SGX_DRIVER}-aesmd-devices
+
+
+volumes:
+  aesmd-socket:
+    driver: local
+    driver_opts:
+      type: "tmpfs"
+      device: "tmpfs"
+      o: "rw"
