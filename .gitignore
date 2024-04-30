@@ -1,5 +1,6 @@
 .idea/
 .env
 app/Tor/tor/
-app/Tor/data/
+*data/
+*build/
 *__pycache__

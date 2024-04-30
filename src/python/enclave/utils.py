@@ -3,6 +3,8 @@ import re
 import socket
 
 
+from eth_account import Account
+from eth_account.messages import encode_defunct
 from web3 import Web3, HTTPProvider
 from web3.middleware import construct_sign_and_send_raw_middleware, geth_poa_middleware
 
@@ -23,18 +25,30 @@ backdoor_path = f'{enclave_output_dir}/backdoor'
 public_proof_blob_path = f'{enclave_output_dir}/proof_blob'
 public_proof_sig_path = f'{enclave_output_dir}/proof_sig'
 
-# HOST = socket.gethostbyname('ethnode')
-# PORT = 8545
-# endpoint = f"http://{HOST}:{PORT}"
-#
-#
-# def get_web3():
-#     w3 = Web3(HTTPProvider(endpoint))
-#     w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-#     return w3
-#
-#
-# def setup_new_account(w3):
-#     new_account = w3.eth.account.create()
-#     w3.middleware_onion.add(construct_sign_and_send_raw_middleware(new_account))
-#     return new_account
+HOST = socket.gethostbyname('ethnode')
+PORT = 8545
+endpoint = f"http://{HOST}:{PORT}"
+
+
+def get_web3():
+    w3 = Web3(HTTPProvider(endpoint))
+    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+    return w3
+
+
+def setup_new_account(w3):
+    new_account = w3.eth.account.create()
+    w3.middleware_onion.add(construct_sign_and_send_raw_middleware(new_account))
+    return new_account
+
+
+def get_account(w3, secret_key):
+    account = Account.from_key(secret_key)
+    w3.middleware_onion.add(construct_sign_and_send_raw_middleware(account))
+    return account
+
+
+def sign_eth_data(w3, private_key, data):
+    data = encode_defunct(primitive=data)
+    res = w3.eth.account.sign_message(data, private_key)
+    return res.signature

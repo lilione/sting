@@ -15,4 +15,4 @@ class VerifyEvidence(object):
 
     def write_outputs(self):
         open(public_proof_blob_path, 'wb').write(self.proof_blob)
-        open(public_proof_blob_sig, 'wb').write(self.proof_sig)
+        open(public_proof_sig_path, 'wb').write(self.proof_sig)

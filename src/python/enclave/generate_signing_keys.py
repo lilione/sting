@@ -1,4 +1,4 @@
-from src.python.enclave.utils import *
+from framework.python.enclave.utils import *
 
 
 if __name__ == '__main__':
