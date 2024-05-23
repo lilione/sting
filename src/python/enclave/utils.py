@@ -25,7 +25,7 @@ backdoor_path = f'{enclave_output_dir}/backdoor'
 public_proof_blob_path = f'{enclave_output_dir}/proof_blob'
 public_proof_sig_path = f'{enclave_output_dir}/proof_sig'
 
-HOST = socket.gethostbyname('ethnode')
+HOST = socket.gethostbyname('geth')
 PORT = 8545
 endpoint = f"http://{HOST}:{PORT}"
 

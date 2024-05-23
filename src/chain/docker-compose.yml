@@ -14,8 +14,8 @@ services:
       - --geth-genesis-json-in=/execution/genesis.json
       - --geth-genesis-json-out=/genesis/genesis.json
     volumes:
-      - ./consensus/config.yml:/consensus/config.yml
-      - ./execution/genesis.json:/execution/genesis.json
+      - ../../src/chain/consensus/config.yml:/consensus/config.yml
+      - ../../src/chain/execution/genesis.json:/execution/genesis.json
       - genesis:/genesis/
 
   # Sets up the genesis configuration for the go-ethereum client from a JSON file.
@@ -66,8 +66,8 @@ services:
       - 6060:6060
       - 9090:9090
     volumes:
-      - ./consensus/config.yml:/consensus/config.yml
-      - ./execution/jwtsecret:/execution/jwtsecret
+      - ../../src/chain/consensus/config.yml:/consensus/config.yml
+      - ../../src/chain/execution/jwtsecret:/execution/jwtsecret
       - genesis:/genesis/
 
   # Runs the go-ethereum execution client with the specified, unlocked account and necessary
@@ -103,9 +103,9 @@ services:
       beacon-chain:
         condition: service_started
     volumes:
-      - ./execution/keystore:/execution/keystore/
-      - ./execution/jwtsecret:/execution/jwtsecret
-      - ./execution/geth_password.txt:/execution/geth_password.txt
+      - ../../src/chain/execution/keystore:/execution/keystore/
+      - ../../src/chain/execution/jwtsecret:/execution/jwtsecret
+      - ../../src/chain/execution/geth_password.txt:/execution/geth_password.txt
       - data:/data/
 
   # We run a validator client with 64, deterministically-generated keys that match
@@ -124,7 +124,7 @@ services:
       beacon-chain:
         condition: service_started
     volumes:
-      - ./consensus/config.yml:/consensus/config.yml
+      - ../../src/chain/consensus/config.yml:/consensus/config.yml
 
 
 volumes:
