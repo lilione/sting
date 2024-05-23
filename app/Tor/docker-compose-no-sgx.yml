@@ -110,18 +110,3 @@ services:
       #  - "80"
       deploy:
         replicas: ${WEB_REPLICAS}
-
-  ethnode:
-    image: ethereum/client-go:alltools-stable
-    environment:
-      POADIR: /opt/poa
-      DATADIR: /opt/poa/data
-      KEYSTORE: /opt/poa/keystore/admin
-    ports:
-      - "8545:8545"
-      - "8546:8546"
-    volumes:
-      - ./poa/chain-latest.sh:/usr/src/chain-latest.sh
-      - ./poa:/opt/poa
-    working_dir: /usr/src/
-    entrypoint: sh chain-latest.sh
