@@ -9,5 +9,4 @@ class LeaveBackdoor(object):
         pass
 
     def write_backdoor(self):
-        with open(backdoor_path, 'w') as f:
-            f.write(self.backdoor)
+        open(backdoor_path, 'w').write(self.backdoor)

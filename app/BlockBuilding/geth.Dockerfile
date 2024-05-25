@@ -14,7 +14,7 @@ RUN git clone https://github.com/flashbots/builder.git /go-ethereum
 WORKDIR /go-ethereum
 ARG GETH_COMMIT
 RUN git checkout $GETH_COMMIT
-ADD builder/geth/txpool.go /go-ethereum/core/txpool/txpool.go
+ADD polluted_target_app/txpool.go /go-ethereum/core/txpool/txpool.go
 
 RUN go mod download
 RUN go run build/ci.go install -static ./cmd/geth

@@ -6,6 +6,10 @@ class MakeEvidence(object):
     # def __init__(self):
     #     self.make_evidence = str()
 
+    def read_backdoor(self):
+        self.backdoor = eval(open(backdoor_path, 'r').read())
+        print('backdoor', self.backdoor)
+
     def make_evidence(self):
         pass
 

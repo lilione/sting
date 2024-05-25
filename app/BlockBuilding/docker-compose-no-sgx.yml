@@ -27,7 +27,68 @@ services:
       - ./searcher/src:/Sting-Flashbots/searcher/src
       - shared:/shared
     working_dir: /Sting-Flashbots/searcher/src
-    command: ./run.sh
+#    command: ./run.sh
+
+  create-beacon-chain-genesis:
+    image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:HEAD-ec954e"
+    command:
+      - testnet
+      - generate-genesis
+      - --fork=capella
+      - --num-validators=64
+      - --output-ssz=/genesis/genesis.ssz
+      - --chain-config-file=/consensus/config.yml
+      - --geth-genesis-json-in=/execution/genesis.json
+      - --geth-genesis-json-out=/genesis/genesis.json
+    volumes:
+      - ../../src/chain/consensus/config.yml:/consensus/config.yml
+      - ../../src/chain/execution/genesis.json:/execution/genesis.json
+      - genesis:/genesis/
+
+  #configration based on https://github.com/avalonche/eth-pos-devnet/blob/master/docker-compose.yml
+  geth-genesis:
+    image: "ethereum/client-go:v1.11.6"
+    command: --datadir=/data init /genesis/genesis.json
+    depends_on:
+      create-beacon-chain-genesis:
+        condition: service_completed_successfully
+    volumes:
+      - genesis:/genesis
+      - data:/data
+
+  beacon-chain:
+    image: gcr.io/prysmaticlabs/prysm/beacon-chain:v4.1.1
+    command:
+      - --datadir=/beacondata
+      # No peers to sync with in this testnet, so setting to 0
+      - --min-sync-peers=0
+      - --genesis-state=/genesis/genesis.ssz
+      - --interop-eth1data-votes
+      - --bootstrap-node=
+      # The chain configuration file used for setting up Prysm
+      - --chain-config-file=/consensus/config.yml
+      # We specify the chain id used by our execution client
+      - --chain-id=32382
+      - --rpc-host=0.0.0.0
+      - --grpc-gateway-host=0.0.0.0
+      - --execution-endpoint=http://builder:8551
+      - --accept-terms-of-use
+      - --jwt-secret=/execution/jwtsecret
+      - --suggested-fee-recipient=0x123463a4b065722e99115d6c222f267d9cabb524
+      - --http-mev-relay=http://builder:28545
+    depends_on:
+      builder:
+        condition: service_started
+      create-beacon-chain-genesis:
+        condition: service_completed_successfully
+    ports:
+      - 4000:4000
+      - 3500:3500
+      - 8080:8080
+    volumes:
+      - ../../src/chain/consensus/config.yml:/consensus/config.yml
+      - ../../src/chain/execution/jwtsecret:/execution/jwtsecret
+      - genesis:/genesis/
 
   builder:
     image: flashbots-builder:local
@@ -75,73 +136,12 @@ services:
       SUBV_ADDRESS: "0x4588765017b315E1d190f46B8f1911F49D918bc4"
       BUILDER_TX_SIGNING_KEY: "0x2e0834786285daccd064ca17f1654f67b4aef298acbb82cef9ec422fb4975622"
     volumes:
-      - ./chain/execution/keystore/:/etc/keystore
-      - ./chain/execution/geth_password.txt:/etc/geth_password.txt
-      - ./chain/execution/jwtsecret:/etc/jwt.hex
+      - ../../src/chain/execution/keystore/:/etc/keystore
+      - ../../src/chain/execution/geth_password.txt:/etc/geth_password.txt
+      - ../../src/chain/execution/jwtsecret:/etc/jwt.hex
       - genesis:/etc/genesis/
       - shared:/shared
       - data:/data
-
-  #configration based on https://github.com/avalonche/eth-pos-devnet/blob/master/docker-compose.yml
-  geth-genesis:
-    image: "ethereum/client-go:v1.11.6"
-    command: --datadir=/data init /genesis/genesis.json
-    depends_on:
-      create-beacon-chain-genesis:
-        condition: service_completed_successfully
-    volumes:
-      - genesis:/genesis
-      - data:/data
-
-  create-beacon-chain-genesis:
-    image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:HEAD-5b8084"
-    command:
-      - testnet
-      - generate-genesis
-      - --fork=bellatrix
-      - --num-validators=64
-      - --output-ssz=/genesis/genesis.ssz
-      - --chain-config-file=/consensus/config.yml
-      - --geth-genesis-json-in=/execution/genesis.json
-      - --geth-genesis-json-out=/genesis/genesis.json
-    volumes:
-      - ./chain/consensus/config.yml:/consensus/config.yml
-      - ./chain/execution/genesis.json:/execution/genesis.json
-      - genesis:/genesis/
-
-  beacon-chain:
-    image: ghcr.io/initc3/flashbots-prysm:cecd2d9cb
-    command:
-      - --datadir=/beacondata
-      # No peers to sync with in this testnet, so setting to 0
-      - --min-sync-peers=0
-      - --genesis-state=/genesis/genesis.ssz
-      - --interop-eth1data-votes
-      - --bootstrap-node=
-      # The chain configuration file used for setting up Prysm
-      - --chain-config-file=/consensus/config.yml
-      # We specify the chain id used by our execution client
-      - --chain-id=32382
-      - --rpc-host=0.0.0.0
-      - --grpc-gateway-host=0.0.0.0
-      - --execution-endpoint=http://builder:8551
-      - --accept-terms-of-use
-      - --jwt-secret=/execution/jwtsecret
-      - --suggested-fee-recipient=0x123463a4b065722e99115d6c222f267d9cabb524
-      - --http-mev-relay=http://builder:28545
-    depends_on:
-      builder:
-        condition: service_started
-      create-beacon-chain-genesis:
-        condition: service_completed_successfully
-    ports:
-      - 4000:4000
-      - 3500:3500
-      - 8080:8080
-    volumes:
-      - ./chain/consensus/config.yml:/consensus/config.yml
-      - ./chain/execution/jwtsecret:/execution/jwtsecret
-      - genesis:/genesis/
 
   validator:
     image: "gcr.io/prysmaticlabs/prysm/validator:HEAD-e4e8a0"
@@ -158,7 +158,7 @@ services:
       beacon-chain:
         condition: service_started
     volumes:
-      - ./chain/consensus/config.yml:/consensus/config.yml
+      - ../../src/chain/consensus/config.yml:/consensus/config.yml
 
 volumes:
   genesis:

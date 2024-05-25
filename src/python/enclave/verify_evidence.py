@@ -2,6 +2,8 @@ from framework.python.enclave.utils import *
 
 
 class VerifyEvidence(object):
+    def __init__(self):
+        self.w3 = get_web3()
 
     def read_inputs(self):
         with open(local_evidence_path, 'r') as f:

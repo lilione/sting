@@ -1,4 +1,3 @@
-import json
 import sys
 
 from eth_abi import encode
