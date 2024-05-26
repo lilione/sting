@@ -1,18 +1,22 @@
-# Tor
+# Enter application directory
+
+```cd app/[app_name]```
+
+## Tor
 
 ```cd app/Tor```
 
-# Flashbots
+## Flashbots
 
 ```cd app/BlockBuilding```
 
-## Start demo 
+# Start demo 
 
-w/o SGX
+## w/o SGX
 
 ```bash ../../src/scripts/setup_no_sgx.sh```
 
-w/ SGX
+## w/ SGX
 
 ```bash ../../src/scripts/setup.sh```
 
@@ -29,5 +33,5 @@ docker exec -it tor-client-1 bash
 bash run_demo.sh
 ```
 
-## Shut down demo
+# Shut down demo
 ```bash ../../src/scripts/clean.sh```

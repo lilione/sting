@@ -17,17 +17,23 @@ services:
     environment:
       SEPOLIA: "0"
       LOCALNET: "1"
-      STINGER_PK: "0x0763770ef43a3bb2314d0be24c98da346f695d96e6632646915f94ab7aafd04a"
+      STING_TX_SENDER_PK: "0x0763770ef43a3bb2314d0be24c98da346f695d96e6632646915f94ab7aafd04a"
       TLS: 0
       SGX: -1
       DEBUG: "${DEBUG-1}"
       GRAMINE_IMG_TAG: $GRAMINE_IMG_TAG
     volumes:
-      - ./chain/solidity:/Sting-Flashbots/searcher/solidity
-      - ./searcher/src:/Sting-Flashbots/searcher/src
+      - ../../src:/src/framework
+      - ./src/sf_mod:/src/sf_mod
+      - ./src/informer:/src/informer
+      - ./src/run_demo.sh:/src/run_demo.sh
+      - ./data/enclave:/data/enclave
+      - ./data/input:/data/input
+      - ./data/output:/data/output
       - shared:/shared
-    working_dir: /Sting-Flashbots/searcher/src
+    working_dir: /src
 #    command: ./run.sh
+    command: sleep infinity
 
   create-beacon-chain-genesis:
     image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:HEAD-ec954e"

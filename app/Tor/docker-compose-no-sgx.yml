@@ -66,7 +66,7 @@ services:
         replicas: 3
       volumes:
         - ./tor:/tor
-        - ./data/input:/private-tor-network/data/input
+        - ./data/input:/data/input
       depends_on:
         # Make sure the DA's are already up
         - da1
@@ -83,13 +83,14 @@ services:
         - "9051:9051"
       volumes:
         - ./tor:/tor
-        - ./src/sf_mod:/private-tor-network/src/sf_mod
-        - ./src/informer:/private-tor-network/src/informer
-        - ./src/run_demo.sh:/private-tor-network/src/run_demo.sh
-        - ./data/enclave:/private-tor-network/data/enclave
-        - ./data/input:/private-tor-network/data/input
-        - ./data/output:/private-tor-network/data/output
-        - ../../src:/private-tor-network/src/framework
+        - ./src/sf_mod:/src/sf_mod
+        - ./src/informer:/src/informer
+        - ./src/run_demo.sh:/src/run_demo.sh
+        - ./src/init_client.sh:/src/init_client.sh
+        - ./data/enclave:/data/enclave
+        - ./data/input:/data/input
+        - ./data/output:/data/output
+        - ../../src:/src/framework
       environment:
         ROLE: CLIENT
         SGX: -1
@@ -100,8 +101,8 @@ services:
         - da1
         - da2
         - da3
-      working_dir: /private-tor-network/src/
-      command: tor -f /etc/tor/torrc
+      working_dir: /src/
+      command : bash init_client.sh
 #      command: sleep infinity
 
   web:
@@ -110,3 +111,134 @@ services:
       #  - "80"
       deploy:
         replicas: ${WEB_REPLICAS}
+
+  # Creates a genesis state for the beacon chain using a YAML configuration file and
+  # a deterministic set of 64 validators.
+  create-beacon-chain-genesis:
+    image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:HEAD-ec954e"
+    command:
+      - testnet
+      - generate-genesis
+      - --fork=capella
+      - --num-validators=64
+      - --output-ssz=/genesis/genesis.ssz
+      - --chain-config-file=/consensus/config.yml
+      - --geth-genesis-json-in=/execution/genesis.json
+      - --geth-genesis-json-out=/genesis/genesis.json
+    volumes:
+      - ../../src/chain/consensus/config.yml:/consensus/config.yml
+      - ../../src/chain/execution/genesis.json:/execution/genesis.json
+      - genesis:/genesis/
+
+  # Sets up the genesis configuration for the go-ethereum client from a JSON file.
+  geth-genesis:
+    image: "ethereum/client-go:v1.11.6"
+    command: --datadir=/data init /genesis/genesis.json
+    volumes:
+      - genesis:/genesis
+      - data:/data
+    depends_on:
+      create-beacon-chain-genesis:
+        condition: service_completed_successfully
+
+  # Runs a Prysm beacon chain from a specified genesis state created in the previous step
+  # and connects to go-ethereum in the same network as the execution client.
+  # The account used in go-ethereum is set as the suggested fee recipient for transactions
+  # proposed via the validators attached to the beacon node.
+  beacon-chain:
+    image: "gcr.io/prysmaticlabs/prysm/beacon-chain:v4.1.1"
+    command:
+      - --datadir=/beacondata
+      # No peers to sync with in this testnet, so setting to 0
+      - --min-sync-peers=0
+      - --genesis-state=/genesis/genesis.ssz
+      - --bootstrap-node=
+      - --interop-eth1data-votes
+      # The chain configuration file used for setting up Prysm
+      - --chain-config-file=/consensus/config.yml
+      # We specify the chain id used by our execution client
+      - --contract-deployment-block=0
+      - --chain-id=${CHAIN_ID:-32382}
+      - --rpc-host=0.0.0.0
+      - --grpc-gateway-host=0.0.0.0
+      - --execution-endpoint=http://geth:8551
+      - --accept-terms-of-use
+      - --jwt-secret=/execution/jwtsecret
+      - --suggested-fee-recipient=0x123463a4b065722e99115d6c222f267d9cabb524
+      - --minimum-peers-per-subnet=0
+      - --enable-debug-rpc-endpoints
+      - --force-clear-db
+    depends_on:
+      create-beacon-chain-genesis:
+        condition: service_completed_successfully
+    ports:
+      - 4000:4000
+      - 3500:3500
+      - 8080:8080
+      - 6060:6060
+      - 9090:9090
+    volumes:
+      - ../../src/chain/consensus/config.yml:/consensus/config.yml
+      - ../../src/chain/execution/jwtsecret:/execution/jwtsecret
+      - genesis:/genesis/
+
+  # Runs the go-ethereum execution client with the specified, unlocked account and necessary
+  # APIs to allow for proof-of-stake consensus via Prysm.
+  geth:
+    image: "ethereum/client-go:latest"
+    command:
+      - --http
+      - --http.api=eth,net,web3
+      - --http.addr=0.0.0.0
+      - --http.corsdomain=*
+      - --ws
+      - --ws.api=eth,net,web3
+      - --ws.addr=0.0.0.0
+      - --ws.origins=*
+      - --authrpc.vhosts=*
+      - --authrpc.addr=0.0.0.0
+      - --authrpc.jwtsecret=/execution/jwtsecret
+      - --keystore=/execution/keystore
+      - --datadir=/data
+      - --allow-insecure-unlock
+      - --unlock=0x123463a4b065722e99115d6c222f267d9cabb524
+      - --password=/execution/geth_password.txt
+      - --nodiscover
+      - --syncmode=full
+    ports:
+      - 8551:8551
+      - 8545:8545
+      - 8546:8546
+    depends_on:
+      geth-genesis:
+        condition: service_completed_successfully
+      beacon-chain:
+        condition: service_started
+    volumes:
+      - ../../src/chain/execution/keystore:/execution/keystore/
+      - ../../src/chain/execution/jwtsecret:/execution/jwtsecret
+      - ../../src/chain/execution/geth_password.txt:/execution/geth_password.txt
+      - data:/data/
+
+  # We run a validator client with 64, deterministically-generated keys that match
+  # The validator keys present in the beacon chain genesis state generated a few steps above.
+  validator:
+    image: "gcr.io/prysmaticlabs/prysm/validator:v4.1.1"
+    command:
+      - --beacon-rpc-provider=beacon-chain:4000
+      - --datadir=/validatordata
+      - --accept-terms-of-use
+      - --interop-num-validators=64
+      - --interop-start-index=0
+      - --chain-config-file=/consensus/config.yml
+      - --force-clear-db
+    depends_on:
+      beacon-chain:
+        condition: service_started
+    volumes:
+      - ../../src/chain/consensus/config.yml:/consensus/config.yml
+
+
+volumes:
+  genesis:
+  data:

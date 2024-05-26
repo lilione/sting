@@ -3,16 +3,16 @@
 set -e
 set -x
 
-rm -rf /private-tor-network/data/enclave/*
+rm -rf /data/enclave/*
 
 
 if [[ "$SGX" == 1 ]]; then
 
-  cd /private-tor-network/src
+  cd /src
   make clean || true
   make
 
-  cd /private-tor-network
+  cd /
   make clean || true
   make
 

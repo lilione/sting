@@ -17,7 +17,7 @@ fs.mounts = [
   { path = "/usr/local/var", uri = "file:/usr/local/var" },
   { path = "/etc/tor/torrc", uri = "file:/etc/tor/torrc" },
 
-  { path = "/private-tor-network/data/", uri = "file:/private-tor-network/data/" },
+  { path = "/data/", uri = "file:/data/" },
   { path = "/tor/", uri = "file:/tor/" },
 ]
 
@@ -42,6 +42,6 @@ sgx.allowed_files = [
   "file:/etc/tor/torrc",
 
   "file:/tor/",
-  "file:/private-tor-network/data/",
+  "file:/data/",
 ]
 

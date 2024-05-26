@@ -21,9 +21,9 @@ elif [[ "$SGX" == -1 ]]; then
 
 fi
 
-data_dir=/private-tor-network/data/enclave
-input_dir=/private-tor-network/data/input
-output_dir=/private-tor-network/data/output
+data_dir=/data/enclave
+input_dir=/data/input
+output_dir=/data/output
 
 rm -rf $data_dir/*
 rm -rf $input_dir/*
